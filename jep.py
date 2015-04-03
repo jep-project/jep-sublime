@@ -46,7 +46,7 @@ class JEPErrorAnnotation(sublime_plugin.EventListener):
 		self.update_status_bar(view)
 
 	def update_status_bar(self, view):
-		errors = self.errors_by_file[view.file_name()]
+		errors = self.errors_by_file.get(view.file_name(), [])
 		# sublime doesn't support tooltips, so error hovers aren't possible
 		# show errors in the status bar instead
 		cur_line = self.cursor_line(view)
