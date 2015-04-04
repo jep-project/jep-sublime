@@ -1,23 +1,92 @@
 import sublime, sublime_plugin
 import sys
 import string
+import datetime
 from os.path import realpath, dirname, join
 
 sys.path.append(join(dirname(realpath(__file__)), "..", "jep-python"))
-from jep.config import ServiceConfigProvider 
+from jep.frontend import Frontend, BackendListener, State
+from jep.schema import Shutdown, CompletionRequest, ContentSync
+
+class BackendAdapter(BackendListener):
+	def __init__(self):
+		self.frontend = Frontend([self])
+		self.connections = []
+		self.next_token_id = 0
+		self.connecting_views = {}
+
+	def on_backend_alive(self, context):
+		context.send_message(Shutdown())
+
+	def on_completion_response(self, response, context):
+		self.completion_response = response
+
+	def request_completion(self, view, file, data, pos):
+		con = self._connection(file)
+		if con:
+			if con.state is State.Connected:
+				token = str(self.next_token_id)
+				self.next_token_id += 1
+				con.send_message(ContentSync(file=file, data=data))
+				con.send_message(CompletionRequest(token=token, file=file, pos=pos))
+				self.completion_response = None
+				for i in range(0, 50):
+					con.run(datetime.timedelta(seconds=0.1))
+					if self.completion_response:
+						break
+				return self.completion_response
+			elif con.state is State.Connecting:
+				view.set_status("jep-status", "JEP Backend Starting ...")
+				self.connecting_views[con] = view
+				return None
+			elif con.state is State.Disconnected:
+				view.set_status("jep-status", "JEP Backend Disconnected!")
+				return None
+			else:
+				view.set_status("jep-status", "Unknown ...")
+				return None
+		else:
+			print("no connection")
+			return None
+
+	def _connection(self, file):
+		con = self.frontend.get_connection(file)
+		if con and (not con in self.connections):
+			self.connections.append(con)
+		return con
+
+	def run(self):
+		for con in self.connections:
+			con.run(datetime.timedelta(seconds=0.1))
+			if con.state is not State.Connecting and self.connecting_views.get(con, False):
+				self.connecting_views[con].set_status("jep-status", "JEP Backend Ready!")
+				self.connecting_views.pop(con, None)
+
+class TimeoutHandler:
+	def timeout(self):
+		if self == timeout_handler:
+			backend_adapter.run()
+			sublime.set_timeout(self.timeout, 1000)
+			
+backend_adapter = BackendAdapter()
+
+timeout_handler = TimeoutHandler()
+timeout_handler.timeout()
 
 class JEPAutocomplete(sublime_plugin.EventListener):
 	def on_query_completions(self, view, prefix, locations):
-		print("pos:		"+str(locations[0]))
-		print("prefix: '"+prefix+"'")
-		print("file		" + view.file_name())
-		provider = ServiceConfigProvider()
-		sc = provider.provide_for(view.file_name())
-		if sc:
-			print("command: "+sc.command)
-		else:
-			print("no JEP config")
-		return [["jeptest1\thinter", "jeptest1"], ["jeptest2", "jeptest2"]]
+		res = backend_adapter.request_completion(view, view.file_name(), view.substr(sublime.Region(0, view.size())), locations[0])
+		result = []
+		if res:
+			desc_len = 60
+			for option in res.options:
+				desc = str(option.desc)
+				if len(desc) > desc_len:
+					desc = str(option.desc)[0:desc_len-3]+"..."
+				else:
+					desc = str(option.desc).ljust(desc_len)
+				result.append([option.insert+"\t"+desc, option.insert])
+		return result
 
 class JEPErrorAnnotation(sublime_plugin.EventListener):
 	def __init__(self):
