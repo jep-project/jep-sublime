@@ -15,6 +15,7 @@ class BackendAdapter(BackendListener):
         self.connections = []
         self.next_token_id = 0
         self.connecting_views = {}
+        self.completion_response = None
 
     def on_backend_alive(self, context):
         pass
@@ -52,7 +53,7 @@ class BackendAdapter(BackendListener):
 
     def _connection(self, file):
         con = self.frontend.get_connection(file)
-        if con and (not con in self.connections):
+        if con and con not in self.connections:
             self.connections.append(con)
         return con
 
@@ -132,11 +133,13 @@ class JEPErrorAnnotation(sublime_plugin.EventListener):
         if not in_error_line:
             view.set_status("jep-status", str(len(errors)) + " errors")
 
-    def cursor_line(self, view):
+    @staticmethod
+    def cursor_line(view):
         region = view.sel()[0]
         return view.rowcol(region.a)[0]
 
-    def fake_errors(self, text):
+    @staticmethod
+    def fake_errors(text):
         errors = []
         lines = text.split("\n")
         i = 0
