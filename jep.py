@@ -1,12 +1,12 @@
 import sublime, sublime_plugin
 import sys
 import datetime
-from os.path import realpath, dirname, join
+from os.path import dirname, join
 
-sys.path.append(join(dirname(realpath(__file__)), "contrib"))
-sys.path.append(join(dirname(realpath(__file__)), "..", "jep-python"))
+sys.path.append(join(dirname(__file__), "contrib"))
+sys.path.append(join(dirname(__file__), "..", "jep-python"))
 from jep.frontend import Frontend, BackendListener, State
-from jep.schema import Shutdown, CompletionRequest, ContentSync
+from jep.schema import CompletionRequest, ContentSync
 
 
 class BackendAdapter(BackendListener):
