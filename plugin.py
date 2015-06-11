@@ -12,11 +12,9 @@ from jep.schema import CompletionRequest, ContentSync
 #
 # Move jep specific classes (adapter, ...) to separate module, move to sub package to prevent being loaded by Sublime directly.
 #
-# Properly inject instances (adapter into plugin).
+# Properly inject instances (adapter into plugin). Sublime instantiates listeners once per application instance.
 #
 # Move synchronous call logic to frontend connection class.
-#
-# Clarify how Sublime detects and instantiates plugins and event listeners. Can we prevent global instances of adapter etc.?
 
 class BackendAdapter(BackendListener):
     def __init__(self):
