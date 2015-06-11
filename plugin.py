@@ -90,14 +90,8 @@ class JEPAutocomplete(sublime_plugin.EventListener):
         res = backend_adapter.request_completion(view, view.file_name(), view.substr(sublime.Region(0, view.size())), locations[0])
         result = []
         if res:
-            desc_len = 60
             for option in res.options:
-                desc = str(option.desc)
-                if len(desc) > desc_len:
-                    desc = str(option.desc)[0:desc_len - 3] + "..."
-                else:
-                    desc = str(option.desc).ljust(desc_len)
-                result.append([option.insert + "\t" + desc, option.insert])
+                result.append(['%s\t%s' % (option.insert, option.desc), option.insert])
         return result
 
 
@@ -138,7 +132,7 @@ class JEPErrorAnnotation(sublime_plugin.EventListener):
                 view.set_status("jep-status", "Error: " + e[1])
                 in_error_line = True
         if not in_error_line:
-            view.set_status("jep-status", str(len(errors)) + " errors")
+            view.set_status("jep-status", "%d errors" % len(errors))
 
     @staticmethod
     def cursor_line(view):
