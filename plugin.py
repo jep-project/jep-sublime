@@ -8,6 +8,15 @@ sys.path.append(join(dirname(__file__), "..", "jep-python"))
 from jep.frontend import Frontend, BackendListener, State
 from jep.schema import CompletionRequest, ContentSync
 
+# TODO for cleanup
+#
+# Move jep specific classes (adapter, ...) to separate module, move to sub package to prevent being loaded by Sublime directly.
+#
+# Properly inject instances (adapter into plugin).
+#
+# Move synchronous call logic to frontend connection class.
+#
+# Clarify how Sublime detects and instantiates plugins and event listeners. Can we prevent global instances of adapter etc.?
 
 class BackendAdapter(BackendListener):
     def __init__(self):
