@@ -5,7 +5,7 @@ sys.path.append(join(dirname(__file__), "contrib"))
 sys.path.append(join(dirname(__file__), "..", "jep-python"))
 
 from .jep_sublime.infrastructure import BackendAdapter, TimeoutHandler
-from .jep_sublime.listeners import JEPAutocomplete, JEPErrorAnnotation
+from .jep_sublime.editing import JEPAutocomplete, JEPErrorAnnotation
 import sublime_plugin
 
 

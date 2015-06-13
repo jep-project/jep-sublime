@@ -1,3 +1,4 @@
+"""Infrastructure to connect Sublime and JEP."""
 import datetime
 from jep.frontend import BackendListener, Frontend, State
 from jep.schema import ContentSync, CompletionRequest

@@ -1,5 +1,5 @@
+"""Editing features for Sublime using JEP."""
 import sublime
-import sublime_plugin
 
 
 class JEPAutocomplete:
