@@ -4,6 +4,9 @@ from jep.frontend import BackendListener, Frontend, State
 from jep.schema import ContentSync, CompletionRequest
 import sublime
 
+FRONTEND_POLL_DURATION_MS = 100
+FRONTEND_POLL_PERIOD_MS = 1000
+
 
 class BackendAdapter(BackendListener):
     def __init__(self):
@@ -29,7 +32,7 @@ class BackendAdapter(BackendListener):
                 con.send_message(CompletionRequest(token=token, file=file, pos=pos))
                 self.completion_response = None
                 for i in range(0, 50):
-                    con.run(datetime.timedelta(seconds=0.1))
+                    con.run(datetime.timedelta(milliseconds=FRONTEND_POLL_DURATION_MS))
                     if self.completion_response:
                         break
                 return self.completion_response
@@ -55,16 +58,11 @@ class BackendAdapter(BackendListener):
 
     def run(self):
         for con in self.connections:
-            con.run(datetime.timedelta(seconds=0.1))
+            con.run(datetime.timedelta(milliseconds=FRONTEND_POLL_DURATION_MS))
             if con.state is not State.Connecting and self.connecting_views.get(con, False):
                 self.connecting_views[con].set_status("jep-status", "JEP Backend Ready!")
                 self.connecting_views.pop(con, None)
 
-
-class TimeoutHandler:
-    def __init__(self, backend_adapter):
-        self.backend_adapter = backend_adapter
-
-    def timeout(self):
-        self.backend_adapter.run()
-        sublime.set_timeout(self.timeout, 1000)
+    def run_periodically(self):
+        self.run()
+        sublime.set_timeout(self.run_periodically, FRONTEND_POLL_PERIOD_MS)
