@@ -11,7 +11,7 @@ FRONTEND_POLL_PERIOD_MS = 1000
 class BackendAdapter(BackendListener):
     def __init__(self):
         self.frontend = Frontend([self])
-        self.connections = []
+        self.connections = set()
         self.next_token_id = 0
         self.connecting_views = {}
         self.completion_response = None
@@ -23,7 +23,7 @@ class BackendAdapter(BackendListener):
         self.completion_response = response
 
     def request_completion(self, view, file, data, pos):
-        con = self._connection(file)
+        con = self._get_connection(file)
         if con:
             if con.state is State.Connected:
                 token = str(self.next_token_id)
@@ -50,10 +50,9 @@ class BackendAdapter(BackendListener):
             print("no connection")
             return None
 
-    def _connection(self, file):
+    def _get_connection(self, file):
         con = self.frontend.get_connection(file)
-        if con and con not in self.connections:
-            self.connections.append(con)
+        self.connections.add(con)
         return con
 
     def run(self):
