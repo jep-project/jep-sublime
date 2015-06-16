@@ -16,9 +16,6 @@ class BackendAdapter(BackendListener):
         self.connecting_views = {}
         self.completion_response = None
 
-    def on_backend_alive(self, context):
-        pass
-
     def on_completion_response(self, response, context):
         self.completion_response = response
 
