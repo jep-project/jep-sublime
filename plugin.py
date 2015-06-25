@@ -1,3 +1,4 @@
+import logging
 import sys
 from os.path import dirname, join
 
@@ -12,6 +13,8 @@ import sublime_plugin
 # TODO for cleanup
 # Move synchronous call logic to frontend connection class.
 
+_logger = logging.getLogger(__name__)
+
 
 class JepSublimeEventListener(sublime_plugin.EventListener):
     """Entry point for Sublime events, composes object tree."""
@@ -23,6 +26,21 @@ class JepSublimeEventListener(sublime_plugin.EventListener):
 
         self.backend_adapter.run_periodically()
 
+    def on_load(self, view):
+        """File was opened from disk."""
+        _logger.debug('Loaded view %s.' % view.file_name())
+        self.backend_adapter.connect(view)
+
+    def on_post_save(self, view):
+        """File was saved to disk. For a new file we now have a name."""
+        _logger.debug('Saved view %s.' % view.file_name())
+        self.backend_adapter.connect(view)
+
+    def on_close(self, view):
+        """File was removed from editor."""
+        _logger.debug('Closed view %s.' % view.file_name())
+        self.backend_adapter.disconnect(view)
+
     def on_query_completions(self, view, prefix, locations):
         return self.auto_completer.on_query_completions(view, prefix, locations)
 
@@ -31,5 +49,3 @@ class JepSublimeEventListener(sublime_plugin.EventListener):
 
     def on_selection_modified(self, view):
         self.error_annotator.on_selection_modified(view)
-
-
