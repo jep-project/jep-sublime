@@ -10,6 +10,7 @@ _logger = logging.getLogger(__name__)
 FRONTEND_POLL_DURATION_MS = 100
 FRONTEND_POLL_PERIOD_MS = 1000
 
+# TODO: clean up connections if front closes them (event needed?)
 
 class BackendAdapter(BackendListener):
     def __init__(self):

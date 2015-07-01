@@ -26,6 +26,12 @@ class JepSublimeEventListener(sublime_plugin.EventListener):
 
         self.backend_adapter.run_periodically()
 
+    def on_activated(self, view):
+        """Activation of existing view, needed to capture files in editor from last Sublime session."""
+        _logger.debug('Activated view %s.' % view.file_name())
+        if view.file_name():
+            self.backend_adapter.connect(view)
+
     def on_load(self, view):
         """File was opened from disk."""
         _logger.debug('Loaded view %s.' % view.file_name())
