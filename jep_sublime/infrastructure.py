@@ -9,18 +9,15 @@ _logger = logging.getLogger(__name__)
 
 FRONTEND_POLL_DURATION_MS = 100
 FRONTEND_POLL_PERIOD_MS = 1000
+STATUS_CATEGORY = 'JEP'
+STATUS_FORMAT = 'JEP: %s'
 
-# TODO: clean up connections if front closes them (event needed?)
-# issue: if connection is closed by sublime, run is no longer called --> connection is not properly closed --> connection is not
-# properly reestablished --> state out of sync
-#
-# Try to keep running running frontend, at least until all connections are disconnected and dropped.
 
 class BackendAdapter(BackendListener):
     def __init__(self):
         self.frontend = Frontend([self])
         #: Map from connection to supported views.
-        self.connection_files_map = {}
+        self.connection_views_map = {}
         self.file_connection_map = {}
         self.next_token_id = 0
         self.completion_response = None
@@ -37,16 +34,16 @@ class BackendAdapter(BackendListener):
     def request_completion(self, view, file, data, pos):
         con = self._get_connection_for_view(view)
         if con and con.state is State.Connected:
-                token = str(self.next_token_id)
-                self.next_token_id += 1
-                con.send_message(ContentSync(file=file, data=data))
-                con.send_message(CompletionRequest(token=token, file=file, pos=pos))
-                self.completion_response = None
-                for i in range(0, 50):
-                    con.run(datetime.timedelta(milliseconds=FRONTEND_POLL_DURATION_MS))
-                    if self.completion_response:
-                        break
-                return self.completion_response
+            token = str(self.next_token_id)
+            self.next_token_id += 1
+            con.send_message(ContentSync(file=file, data=data))
+            con.send_message(CompletionRequest(token=token, file=file, pos=pos))
+            self.completion_response = None
+            for i in range(0, 50):
+                con.run(datetime.timedelta(milliseconds=FRONTEND_POLL_DURATION_MS))
+                if self.completion_response:
+                    break
+            return self.completion_response
         else:
             _logger.warning("Completion request cannot be served, no connection.")
             return None
@@ -64,34 +61,49 @@ class BackendAdapter(BackendListener):
                 self.file_connection_map[filename] = con
 
                 # maybe the connection is already up as it was used by another file:
-                files = self.connection_files_map.get(con)
-                if not files:
-                    files = set()
-                    self.connection_files_map[con] = files
+                views = self.connection_views_map.get(con)
+                if not views:
+                    views = []
+                    self.connection_views_map[con] = views
 
-                files.add(filename)
+                views.append(view)
             else:
                 _logger.debug('Frontend did not identify backend for file.')
 
         return con
 
     def _release_connection_for_view(self, view):
-        _logger.debug('Number of connections: %d' % len(self.connection_files_map))
+        _logger.debug('Number of connections: %d' % len(self.connection_views_map))
         _logger.debug('Number of files:       %d' % len(self.file_connection_map))
         filename = view.file_name()
         con = self.file_connection_map.pop(filename, None)
         if con:
-            files = self.connection_files_map[con]
-            files.remove(filename)
-            if not files:
+            views = self.connection_views_map[con]
+            views.remove(view)
+            if not views:
                 _logger.debug('Shutting down connection as last view was closed.')
-                # con.disconnect()
-                self.connection_files_map.pop(con)
+                con.disconnect()
 
     def run(self):
-        for con in self.connection_files_map.keys():
+        for con in self.connection_views_map.keys():
+            previous_state = con.state
+
             con.run(datetime.timedelta(milliseconds=FRONTEND_POLL_DURATION_MS))
-        # view.set_status("jep-status", "JEP Backend Disconnected!")
+            new_state = con.state
+
+            if new_state is not previous_state:
+                for view in self.connection_views_map[con]:
+                    if new_state is State.Connected:
+                        status = "Connected"
+                    elif new_state is State.Connecting:
+                        status = "Connecting..."
+                    elif new_state is State.Disconnecting:
+                        status = "Disconnecting..."
+                    elif new_state is State.Disconnected:
+                        status = "Disconnected"
+                    else:
+                        status = "Internal error, unexpected connection state %s." % new_state
+                    view.set_status(STATUS_CATEGORY, STATUS_FORMAT % status)
 
     def run_periodically(self):
         self.run()
