@@ -70,6 +70,7 @@ class BackendAdapter(BackendListener):
             else:
                 _logger.debug('Frontend did not identify backend for file.')
 
+        self._update_view_status_for_connection_state(view, con.state)
         return con
 
     def _release_connection_for_view(self, view):
@@ -84,6 +85,19 @@ class BackendAdapter(BackendListener):
                 _logger.debug('Shutting down connection as last view was closed.')
                 con.disconnect()
 
+    def _update_view_status_for_connection_state(self, view, connection_state):
+        if connection_state is State.Connected:
+            status = "Connected"
+        elif connection_state is State.Connecting:
+            status = "Connecting..."
+        elif connection_state is State.Disconnecting:
+            status = "Disconnecting..."
+        elif connection_state is State.Disconnected:
+            status = "Disconnected"
+        else:
+            status = "Internal error, unexpected connection state %s." % connection_state
+        view.set_status(STATUS_CATEGORY, STATUS_FORMAT % status)
+
     def run(self):
         for con in self.connection_views_map.keys():
             previous_state = con.state
@@ -93,17 +107,7 @@ class BackendAdapter(BackendListener):
 
             if new_state is not previous_state:
                 for view in self.connection_views_map[con]:
-                    if new_state is State.Connected:
-                        status = "Connected"
-                    elif new_state is State.Connecting:
-                        status = "Connecting..."
-                    elif new_state is State.Disconnecting:
-                        status = "Disconnecting..."
-                    elif new_state is State.Disconnected:
-                        status = "Disconnected"
-                    else:
-                        status = "Internal error, unexpected connection state %s." % new_state
-                    view.set_status(STATUS_CATEGORY, STATUS_FORMAT % status)
+                    self._update_view_status_for_connection_state(view, new_state)
 
     def run_periodically(self):
         self.run()
