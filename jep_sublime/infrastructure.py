@@ -11,6 +11,10 @@ FRONTEND_POLL_DURATION_MS = 100
 FRONTEND_POLL_PERIOD_MS = 1000
 
 # TODO: clean up connections if front closes them (event needed?)
+# issue: if connection is closed by sublime, run is no longer called --> connection is not properly closed --> connection is not
+# properly reestablished --> state out of sync
+#
+# Try to keep running running frontend, at least until all connections are disconnected and dropped.
 
 class BackendAdapter(BackendListener):
     def __init__(self):
@@ -19,7 +23,6 @@ class BackendAdapter(BackendListener):
         self.connection_files_map = {}
         self.file_connection_map = {}
         self.next_token_id = 0
-        self.connecting_views = {}
         self.completion_response = None
 
     def connect(self, view):
@@ -33,8 +36,7 @@ class BackendAdapter(BackendListener):
 
     def request_completion(self, view, file, data, pos):
         con = self._get_connection_for_view(view)
-        if con:
-            if con.state is State.Connected:
+        if con and con.state is State.Connected:
                 token = str(self.next_token_id)
                 self.next_token_id += 1
                 con.send_message(ContentSync(file=file, data=data))
@@ -45,18 +47,8 @@ class BackendAdapter(BackendListener):
                     if self.completion_response:
                         break
                 return self.completion_response
-            elif con.state is State.Connecting:
-                view.set_status("jep-status", "JEP Backend Starting ...")
-                self.connecting_views[con] = view
-                return None
-            elif con.state is State.Disconnected:
-                view.set_status("jep-status", "JEP Backend Disconnected!")
-                return None
-            else:
-                view.set_status("jep-status", "Unknown ...")
-                return None
         else:
-            print("no connection")
+            _logger.warning("Completion request cannot be served, no connection.")
             return None
 
     def _get_connection_for_view(self, view):
@@ -93,14 +85,13 @@ class BackendAdapter(BackendListener):
             files.remove(filename)
             if not files:
                 _logger.debug('Shutting down connection as last view was closed.')
+                # con.disconnect()
                 self.connection_files_map.pop(con)
 
     def run(self):
         for con in self.connection_files_map.keys():
             con.run(datetime.timedelta(milliseconds=FRONTEND_POLL_DURATION_MS))
-            if con.state is not State.Connecting and self.connecting_views.get(con, False):
-                self.connecting_views[con].set_status("jep-status", "JEP Backend Ready!")
-                self.connecting_views.pop(con, None)
+        # view.set_status("jep-status", "JEP Backend Disconnected!")
 
     def run_periodically(self):
         self.run()
