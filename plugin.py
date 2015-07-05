@@ -9,10 +9,6 @@ from .jep_sublime.infrastructure import BackendAdapter
 from .jep_sublime.editing import JEPAutocomplete, JEPErrorAnnotation
 import sublime_plugin
 
-
-# TODO for cleanup
-# Move synchronous call logic to frontend connection class.
-
 _logger = logging.getLogger(__name__)
 
 
@@ -51,6 +47,8 @@ class JepSublimeEventListener(sublime_plugin.EventListener):
         return self.auto_completer.on_query_completions(view, prefix, locations)
 
     def on_modified(self, view):
+        """View content was modified by user."""
+        self.backend_adapter.mark_content_modified(view)
         self.error_annotator.on_modified(view)
 
     def on_selection_modified(self, view):

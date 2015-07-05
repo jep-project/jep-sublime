@@ -1,6 +1,7 @@
 """Infrastructure to connect Sublime and JEP."""
 import datetime
 import logging
+import itertools
 from jep.frontend import BackendListener, Frontend, State
 from jep.schema import ContentSync, CompletionRequest
 import sublime
@@ -11,7 +12,12 @@ FRONTEND_POLL_DURATION_MS = 100
 FRONTEND_POLL_PERIOD_MS = 1000
 STATUS_CATEGORY = 'JEP'
 STATUS_FORMAT = 'JEP: %s'
+CONTENT_SYNC_DEBOUNCE_MS = 1000
 
+# TODO for cleanup
+# Move synchronous call logic to frontend connection class.
+# Separate completion request and content update.
+# Allow for incremental content update.
 
 class BackendAdapter(BackendListener):
     def __init__(self):
@@ -22,11 +28,28 @@ class BackendAdapter(BackendListener):
         self.next_token_id = 0
         self.completion_response = None
 
+        #: Map from filename to flag if backend buffer needs update.
+        self.file_modified_map = {}
+
     def connect(self, view):
         self._get_connection_for_view(view)
+        self._start_change_tracking(view)
 
     def disconnect(self, view):
         self._release_connection_for_view(view)
+        self._stop_change_tracking(view)
+
+    def _start_change_tracking(self, view):
+        filename = view.file_name()
+        if filename not in self.file_modified_map:
+            # trigger initial content synchronization:
+            self.file_modified_map[filename] = True
+
+    def _stop_change_tracking(self, view):
+        filename = view.file_name()
+        if filename in self.file_modified_map and filename not in self.file_connection_map:
+            # file was remove from connection map, so the file is no longer "connected":
+            self.file_modified_map.pop(filename)
 
     def on_completion_response(self, response, context):
         self.completion_response = response
@@ -105,10 +128,25 @@ class BackendAdapter(BackendListener):
             con.run(datetime.timedelta(milliseconds=FRONTEND_POLL_DURATION_MS))
             new_state = con.state
 
-            if new_state is not previous_state:
-                for view in self.connection_views_map[con]:
+            for view in self.connection_views_map[con]:
+
+                # show status changes:
+                if new_state is not previous_state:
                     self._update_view_status_for_connection_state(view, new_state)
+
+                # update view content if modified:
+                if new_state is State.Connected and self.file_modified_map.get(view.file_name(), False):
+                    self._synchronize_content(con, view)
 
     def run_periodically(self):
         self.run()
         sublime.set_timeout(self.run_periodically, FRONTEND_POLL_PERIOD_MS)
+
+    def _synchronize_content(self, connection, view):
+        filename = view.file_name()
+        self.file_modified_map[filename] = False
+        connection.send_message(ContentSync(filename, view.substr(sublime.Region(0, view.size()))))
+
+    def mark_content_modified(self, view):
+        filename = view.file_name()
+        self.file_modified_map[filename] = True
