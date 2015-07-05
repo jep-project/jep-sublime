@@ -1,7 +1,6 @@
 """Infrastructure to connect Sublime and JEP."""
 import datetime
 import logging
-import itertools
 from jep.frontend import BackendListener, Frontend, State
 from jep.schema import ContentSync, CompletionRequest
 import sublime
@@ -12,12 +11,10 @@ FRONTEND_POLL_DURATION_MS = 100
 FRONTEND_POLL_PERIOD_MS = 1000
 STATUS_CATEGORY = 'JEP'
 STATUS_FORMAT = 'JEP: %s'
-CONTENT_SYNC_DEBOUNCE_MS = 1000
 
 # TODO for cleanup
 # Move synchronous call logic to frontend connection class.
-# Separate completion request and content update.
-# Allow for incremental content update.
+# Make separate content updater class or move editing to backend adapter?
 
 class BackendAdapter(BackendListener):
     def __init__(self):
