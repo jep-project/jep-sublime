@@ -49,7 +49,4 @@ class JepSublimeEventListener(sublime_plugin.EventListener):
     def on_modified(self, view):
         """View content was modified by user."""
         self.backend_adapter.mark_content_modified(view)
-        self.error_annotator.on_modified(view)
 
-    def on_selection_modified(self, view):
-        self.error_annotator.on_selection_modified(view)
