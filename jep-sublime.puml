@@ -1,0 +1,44 @@
+@startuml
+
+package sublime_plugin {
+    interface EventListener
+}
+
+package jep {
+    interface BackendListener
+    class Frontend
+}
+
+package jep-sublime {
+
+    package plugin {
+        class JepSublimeEventListener {
+            Root class for the plugin. Also the
+            entry point for Sublime callbacks.
+        }
+    }
+
+    package editing {
+        class JepErrorAnnotation
+        class JepAutocomplete
+    }
+
+    package infrastructure {
+        class BackendAdapter {
+            Connection-view association.
+            Content synchronization.
+        }
+    }
+}
+
+EventListener <|.. JepSublimeEventListener
+Frontend --> "0..*" BackendListener
+BackendAdapter <-- JepErrorAnnotation
+BackendAdapter <-- JepAutocomplete
+BackendListener <|.. BackendAdapter
+Frontend <--* BackendAdapter
+JepSublimeEventListener *--> BackendAdapter
+JepSublimeEventListener *--> JepErrorAnnotation
+JepSublimeEventListener *--> JepAutocomplete
+
+@enduml
