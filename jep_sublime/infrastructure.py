@@ -4,7 +4,7 @@ import logging
 
 from jep.frontend import BackendListener, Frontend, State
 from jep.schema import ContentSync, CompletionRequest
-from .editing import ContentTracker
+from .editing import ContentTracker, Autocompleter, ErrorAnnotator
 import sublime
 
 _logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class BackendAdapter(BackendListener):
         * It delegates Sublime events to interested editing capability implementations in the editing module.
     """
 
-    def __init__(self, content_tracker=None):
+    def __init__(self, content_tracker=None, auto_completer=None, error_annotator=None):
         self.frontend = Frontend([self])
         #: Map from connection to supported views.
         self.connection_views_map = {}
@@ -37,6 +37,8 @@ class BackendAdapter(BackendListener):
         self.completion_response = None
 
         self.content_tracker = content_tracker or ContentTracker()
+        self.auto_completer = auto_completer or Autocompleter(self)
+        self.error_annotator = error_annotator or ErrorAnnotator(self)
 
     def connect(self, view):
         self._get_connection_for_view(view)
@@ -148,5 +150,3 @@ class BackendAdapter(BackendListener):
     def run_periodically(self):
         self.run()
         sublime.set_timeout(self.run_periodically, FRONTEND_POLL_PERIOD_MS)
-
-
