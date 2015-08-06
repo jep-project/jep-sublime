@@ -12,12 +12,21 @@ FRONTEND_POLL_PERIOD_MS = 1000
 STATUS_CATEGORY = 'JEP'
 STATUS_FORMAT = 'JEP: %s'
 
+
 # TODO for cleanup
 # Move synchronous call logic to frontend connection class.
-# Make separate content updater class or move editing to backend adapter?
 
 class BackendAdapter(BackendListener):
-    def __init__(self):
+    """Adapter of JEP and Sublime events.
+
+    This class coordinates the Sublime plugin and the JEP frontend class by implementing common tasks in a JEP/Sublime plugin that are independent of any specific editing
+    features:
+
+        * It maps views and files in Sublime to JEP connections.
+        * It delegates Sublime events to interested editing capability implementations in the editing module.
+    """
+
+    def __init__(self, content_tracker=None):
         self.frontend = Frontend([self])
         #: Map from connection to supported views.
         self.connection_views_map = {}
@@ -25,28 +34,19 @@ class BackendAdapter(BackendListener):
         self.next_token_id = 0
         self.completion_response = None
 
-        #: Map from filename to flag if backend buffer needs update.
-        self.file_modified_map = {}
+        self.content_tracker = content_tracker or ContentTracker()
 
     def connect(self, view):
         self._get_connection_for_view(view)
-        self._start_change_tracking(view)
+        self.content_tracker.start_change_tracking(view)
 
     def disconnect(self, view):
-        self._release_connection_for_view(view)
-        self._stop_change_tracking(view)
+        if 0 == self._release_connection_for_view(view):
+            # this was the last view using this connection, no need to track any longer:
+            self.content_tracker.stop_change_tracking(view)
 
-    def _start_change_tracking(self, view):
-        filename = view.file_name()
-        if filename not in self.file_modified_map:
-            # trigger initial content synchronization:
-            self.file_modified_map[filename] = True
-
-    def _stop_change_tracking(self, view):
-        filename = view.file_name()
-        if filename in self.file_modified_map and filename not in self.file_connection_map:
-            # file was remove from connection map, so the file is no longer "connected":
-            self.file_modified_map.pop(filename)
+    def mark_content_modified(self, view):
+        self.content_tracker.mark_content_modified(view)
 
     def on_completion_response(self, response, context):
         self.completion_response = response
@@ -90,10 +90,15 @@ class BackendAdapter(BackendListener):
             else:
                 _logger.debug('Frontend did not identify backend for file.')
 
-        self._update_view_status_for_connection_state(view, con.state)
+        if con:
+            self._update_view_status_for_connection_state(view, con.state)
+
         return con
 
     def _release_connection_for_view(self, view):
+        """Releases the connection for the given view and returns the number of views left using this connection."""
+        num_views_left = 0
+
         _logger.debug('Number of connections: %d' % len(self.connection_views_map))
         _logger.debug('Number of files:       %d' % len(self.file_connection_map))
         filename = view.file_name()
@@ -101,9 +106,12 @@ class BackendAdapter(BackendListener):
         if con:
             views = self.connection_views_map[con]
             views.remove(view)
-            if not views:
+            num_views_left = len(views)
+            if not num_views_left:
                 _logger.debug('Shutting down connection as last view was closed.')
                 con.disconnect()
+
+        return num_views_left
 
     def _update_view_status_for_connection_state(self, view, connection_state):
         if connection_state is State.Connected:
@@ -132,18 +140,39 @@ class BackendAdapter(BackendListener):
                     self._update_view_status_for_connection_state(view, new_state)
 
                 # update view content if modified:
-                if new_state is State.Connected and self.file_modified_map.get(view.file_name(), False):
-                    self._synchronize_content(con, view)
+                if new_state is State.Connected:
+                    self.content_tracker.synchronize_content(con, view)
 
     def run_periodically(self):
         self.run()
         sublime.set_timeout(self.run_periodically, FRONTEND_POLL_PERIOD_MS)
 
-    def _synchronize_content(self, connection, view):
+
+class ContentTracker:
+    def __init__(self):
+        #: Map from filename to flag if backend buffer needs update.
+        self.file_modified_map = {}
+
+    def start_change_tracking(self, view):
         filename = view.file_name()
-        self.file_modified_map[filename] = False
-        connection.send_message(ContentSync(filename, view.substr(sublime.Region(0, view.size()))))
+        if filename not in self.file_modified_map:
+            # trigger initial content synchronization:
+            self.file_modified_map[filename] = True
+
+    def stop_change_tracking(self, view):
+        filename = view.file_name()
+        if filename in self.file_modified_map:
+            self.file_modified_map.pop(filename)
 
     def mark_content_modified(self, view):
         filename = view.file_name()
-        self.file_modified_map[filename] = True
+        # Sublime seems to debounce this events, so this is no performance nightmare:
+        if filename in self.file_modified_map:
+            self.file_modified_map[filename] = True
+
+    def synchronize_content(self, connection, view):
+        """Synchronizes content with backend if modified."""
+        filename = view.file_name()
+        if self.file_modified_map.get(view.file_name(), False):
+            self.file_modified_map[filename] = False
+            connection.send_message(ContentSync(filename, view.substr(sublime.Region(0, view.size()))))
