@@ -1,8 +1,9 @@
 """Editing features for Sublime using JEP."""
+from jep.schema import ContentSync
 import sublime
 
 
-class JEPAutocomplete:
+class Autocompleter:
     def __init__(self, backend_adapter):
         self.backend_adapter = backend_adapter
 
@@ -15,7 +16,7 @@ class JEPAutocomplete:
         return result
 
 
-class JEPErrorAnnotation:
+class ErrorAnnotator:
     def __init__(self, backend_adapter):
         self.backend_adapter = backend_adapter
         self.errors_by_file = {}
@@ -70,3 +71,33 @@ class JEPErrorAnnotation:
                 errors.append([i, "there's an error"])
             i += 1
         return errors
+
+
+class ContentTracker:
+    def __init__(self):
+        #: Map from filename to flag if backend buffer needs update.
+        self.file_modified_map = {}
+
+    def start_change_tracking(self, view):
+        filename = view.file_name()
+        if filename not in self.file_modified_map:
+            # trigger initial content synchronization:
+            self.file_modified_map[filename] = True
+
+    def stop_change_tracking(self, view):
+        filename = view.file_name()
+        if filename in self.file_modified_map:
+            self.file_modified_map.pop(filename)
+
+    def mark_content_modified(self, view):
+        filename = view.file_name()
+        # Sublime seems to debounce this events, so this is no performance nightmare:
+        if filename in self.file_modified_map:
+            self.file_modified_map[filename] = True
+
+    def synchronize_content(self, connection, view):
+        """Synchronizes content with backend if modified."""
+        filename = view.file_name()
+        if self.file_modified_map.get(view.file_name(), False):
+            self.file_modified_map[filename] = False
+            connection.send_message(ContentSync(filename, view.substr(sublime.Region(0, view.size()))))

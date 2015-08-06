@@ -6,7 +6,7 @@ sys.path.append(join(dirname(__file__), "contrib"))
 sys.path.append(join(dirname(__file__), "..", "jep-python"))
 
 from .jep_sublime.infrastructure import BackendAdapter
-from .jep_sublime.editing import JEPAutocomplete, JEPErrorAnnotation
+from .jep_sublime.editing import Autocompleter, ErrorAnnotator
 import sublime_plugin
 
 _logger = logging.getLogger(__name__)
@@ -17,8 +17,8 @@ class JepSublimeEventListener(sublime_plugin.EventListener):
 
     def __init__(self, backend_adapter=None, auto_completer=None, error_annotator=None):
         self.backend_adapter = backend_adapter or BackendAdapter()
-        self.auto_completer = auto_completer or JEPAutocomplete(self.backend_adapter)
-        self.error_annotator = error_annotator or JEPErrorAnnotation(self.backend_adapter)
+        self.auto_completer = auto_completer or Autocompleter(self.backend_adapter)
+        self.error_annotator = error_annotator or ErrorAnnotator(self.backend_adapter)
 
         self.backend_adapter.run_periodically()
 
