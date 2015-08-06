@@ -6,7 +6,6 @@ sys.path.append(join(dirname(__file__), "contrib"))
 sys.path.append(join(dirname(__file__), "..", "jep-python"))
 
 from .jep_sublime.infrastructure import BackendAdapter
-from .jep_sublime.editing import Autocompleter, ErrorAnnotator
 import sublime_plugin
 
 _logger = logging.getLogger(__name__)
@@ -46,4 +45,3 @@ class JepSublimeEventListener(sublime_plugin.EventListener):
     def on_modified(self, view):
         """View content was modified by user."""
         self.backend_adapter.mark_content_modified(view)
-
