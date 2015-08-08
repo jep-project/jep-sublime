@@ -1,0 +1,5 @@
+"""Constants shared between modules."""
+FRONTEND_POLL_DURATION_MS = 100
+FRONTEND_POLL_PERIOD_MS = 1000
+STATUS_CATEGORY = 'JEP'
+STATUS_FORMAT = 'JEP: %s'

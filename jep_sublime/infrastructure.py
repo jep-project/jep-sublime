@@ -3,16 +3,11 @@ import datetime
 import logging
 
 from jep.frontend import BackendListener, Frontend, State
-from jep.schema import ContentSync, CompletionRequest
 from .editing import ContentTracker, Autocompleter, ErrorAnnotator
+from .constants import FRONTEND_POLL_DURATION_MS, FRONTEND_POLL_PERIOD_MS, STATUS_CATEGORY, STATUS_FORMAT
 import sublime
 
 _logger = logging.getLogger(__name__)
-
-FRONTEND_POLL_DURATION_MS = 100
-FRONTEND_POLL_PERIOD_MS = 1000
-STATUS_CATEGORY = 'JEP'
-STATUS_FORMAT = 'JEP: %s'
 
 
 # TODO for cleanup
@@ -33,8 +28,6 @@ class BackendAdapter(BackendListener):
         #: Map from connection to supported views.
         self._connection_views_map = {}
         self._file_connection_map = {}
-        self._next_token_id = 0
-        self._completion_response = None
 
         self.content_tracker = content_tracker or ContentTracker()
         self.auto_completer = auto_completer or Autocompleter(self)
@@ -54,23 +47,7 @@ class BackendAdapter(BackendListener):
 
     def on_completion_response(self, response, context):
         # TODO Remove this after synchronous call logic has been moved to library:
-        self._completion_response = response
-
-    def request_completion(self, view, file, data, pos):
-        con = self.get_connection_for_view(view)
-        if con and con.state is State.Connected:
-            token = str(self._next_token_id)
-            self._next_token_id += 1
-            self._completion_response = None
-            con.send_message(CompletionRequest(token=token, file=file, pos=pos))
-            for i in range(0, 50):
-                con.run(datetime.timedelta(milliseconds=FRONTEND_POLL_DURATION_MS))
-                if self._completion_response:
-                    break
-            return self._completion_response
-        else:
-            _logger.warning('Completion request cannot be served, no connection for file %s.' % file)
-            return None
+        self.auto_completer._completion_response = response
 
     def _get_or_create_connection_for_view(self, view):
         # do we already have a connection for this view?

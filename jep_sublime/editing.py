@@ -1,19 +1,42 @@
 """Editing features for Sublime using JEP."""
-from jep.schema import ContentSync
+import datetime
+import logging
+from jep.frontend import State
+from jep.schema import ContentSync, CompletionRequest
+from .constants import FRONTEND_POLL_DURATION_MS
 import sublime
 
+_logger = logging.getLogger(__name__)
 
 class Autocompleter:
     def __init__(self, backend_adapter):
         self.backend_adapter = backend_adapter
+        self._next_token_id = 0
+        self._completion_response = None
 
     def on_query_completions(self, view, prefix, locations):
-        res = self.backend_adapter.request_completion(view, view.file_name(), view.substr(sublime.Region(0, view.size())), locations[0])
+        res = self._request_completion(view, view.file_name(), view.substr(sublime.Region(0, view.size())), locations[0])
         result = []
         if res:
             for option in res.options:
                 result.append(['%s\t%s' % (option.insert, option.desc), option.insert])
         return result
+
+    def _request_completion(self, view, file, data, pos):
+        con = self.backend_adapter.get_connection_for_view(view)
+        if con and con.state is State.Connected:
+            token = str(self._next_token_id)
+            self._next_token_id += 1
+            self._completion_response = None
+            con.send_message(CompletionRequest(token=token, file=file, pos=pos))
+            for i in range(0, 50):
+                con.run(datetime.timedelta(milliseconds=FRONTEND_POLL_DURATION_MS))
+                if self._completion_response:
+                    break
+            return self._completion_response
+        else:
+            _logger.warning('Completion request cannot be served, no connection for file %s.' % file)
+            return None
 
 
 class ErrorAnnotator:
