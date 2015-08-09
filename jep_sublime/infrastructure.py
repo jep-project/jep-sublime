@@ -10,9 +10,6 @@ import sublime
 _logger = logging.getLogger(__name__)
 
 
-# TODO for cleanup
-# Move synchronous call logic to frontend connection class.
-
 class BackendAdapter(BackendListener):
     """Adapter of JEP and Sublime events.
 
@@ -44,10 +41,6 @@ class BackendAdapter(BackendListener):
 
     def mark_content_modified(self, view):
         self.content_tracker.mark_content_modified(view)
-
-    def on_completion_response(self, response, context):
-        # TODO Remove this after synchronous call logic has been moved to library:
-        self.auto_completer._completion_response = response
 
     def _get_or_create_connection_for_view(self, view):
         # do we already have a connection for this view?
