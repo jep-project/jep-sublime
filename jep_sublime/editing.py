@@ -11,8 +11,6 @@ _logger = logging.getLogger(__name__)
 class Autocompleter:
     def __init__(self, backend_adapter):
         self.backend_adapter = backend_adapter
-        self._next_token_id = 0
-        self._completion_response = None
 
     def on_query_completions(self, view, prefix, locations):
         result = []
