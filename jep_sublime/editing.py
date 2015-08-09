@@ -1,7 +1,6 @@
 """Editing features for Sublime using JEP."""
 import datetime
 import logging
-from jep.frontend import State
 from jep.schema import ContentSync, CompletionRequest
 from .constants import FRONTEND_POLL_DURATION_MS
 import sublime
