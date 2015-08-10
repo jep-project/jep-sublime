@@ -17,6 +17,7 @@ class Autocompleter:
 
         con = self.backend_adapter.get_connection_for_view(view)
         if con:
+            # Prefix passed in from Sublime not used here, as backend is expected to have full view of file content.
             response = con.request_message(CompletionRequest(file=view.file_name(), pos=locations[0]), datetime.timedelta(milliseconds=FRONTEND_POLL_DURATION_MS))
             if response:
                 for option in response.options:
@@ -27,5 +28,3 @@ class Autocompleter:
             _logger.warning('Completion request cannot be served, no connection for file %s.' % view.file_name())
 
         return result
-
-
