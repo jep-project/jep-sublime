@@ -3,21 +3,20 @@ import datetime
 import logging
 
 from jep.frontend import BackendListener, Frontend, State
-from .editing import ContentTracker, Autocompleter, ErrorAnnotator
+from .completion import Autocompleter
+from .content import Tracker
+from .annotation import ErrorAnnotator
 from .constants import FRONTEND_POLL_DURATION_MS, FRONTEND_POLL_PERIOD_MS, STATUS_CATEGORY, STATUS_FORMAT
 import sublime
 
 _logger = logging.getLogger(__name__)
 
 
-class BackendAdapter(BackendListener):
-    """Adapter of JEP and Sublime events.
+class ConnectionManager(BackendListener):
+    """Manages connections between Sublime and JEP backends.
 
-    This class coordinates the Sublime plugin and the JEP frontend class by implementing common tasks in a JEP/Sublime plugin that are independent of any specific editing
-    features:
-
-        * It maps views and files in Sublime to JEP connections.
-        * It delegates Sublime events to interested editing capability implementations in the editing module.
+        * Maps views and files in Sublime to JEP connections.
+        * Delegates Sublime events to interested editing capability implementations in the editing module.
     """
 
     def __init__(self, content_tracker=None, auto_completer=None, error_annotator=None):
@@ -26,7 +25,7 @@ class BackendAdapter(BackendListener):
         self._connection_views_map = {}
         self._file_connection_map = {}
 
-        self.content_tracker = content_tracker or ContentTracker()
+        self.content_tracker = content_tracker or Tracker()
         self.auto_completer = auto_completer or Autocompleter(self)
         self.error_annotator = error_annotator or ErrorAnnotator(self)
 

@@ -5,7 +5,7 @@ from os.path import dirname, join
 sys.path.append(join(dirname(__file__), "contrib"))
 sys.path.append(join(dirname(__file__), "..", "jep-python"))
 
-from .jep_sublime.infrastructure import BackendAdapter
+from .jep_sublime.connection import ConnectionManager
 import sublime_plugin
 
 _logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ class JepSublimeEventListener(sublime_plugin.EventListener):
     """Entry point for Sublime events, composes object tree."""
 
     def __init__(self, backend_adapter=None):
-        self.backend_adapter = backend_adapter or BackendAdapter()
+        self.backend_adapter = backend_adapter or ConnectionManager()
         self.backend_adapter.run_periodically()
 
     def on_activated(self, view):
