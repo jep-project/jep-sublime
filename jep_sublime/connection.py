@@ -7,17 +7,14 @@ from .completion import Autocompleter
 from .content import Tracker
 from .annotation import ErrorAnnotator
 from .constants import FRONTEND_POLL_DURATION_MS, FRONTEND_POLL_PERIOD_MS, STATUS_CATEGORY, STATUS_FORMAT
+from jep.schema import StaticSyntaxRequest, SyntaxFormatType
 import sublime
 
 _logger = logging.getLogger(__name__)
 
 
 class ConnectionManager(BackendListener):
-    """Manages connections between Sublime and JEP backends.
-
-        * Maps views and files in Sublime to JEP connections.
-        * Delegates Sublime events to interested editing capability implementations in the editing module.
-    """
+    """Manages connections between Sublime and JEP backends. Maps views and files in Sublime to JEP connections."""
 
     def __init__(self, content_tracker=None, auto_completer=None, error_annotator=None):
         self._frontend = Frontend([self])
@@ -57,13 +54,9 @@ class ConnectionManager(BackendListener):
                 if not views:
                     views = []
                     self._connection_views_map[con] = views
-
                 views.append(view)
             else:
                 _logger.debug('Frontend did not identify backend for file.')
-
-        if con:
-            self._update_view_status_for_connection_state(view, con.state)
 
         return con
 
@@ -91,36 +84,39 @@ class ConnectionManager(BackendListener):
 
         return num_views_left
 
-    def _update_view_status_for_connection_state(self, view, connection_state):
-        if connection_state is State.Connected:
-            status = "Connected"
-        elif connection_state is State.Connecting:
-            status = "Connecting..."
-        elif connection_state is State.Disconnecting:
-            status = "Disconnecting..."
-        elif connection_state is State.Disconnected:
-            status = "Disconnected"
-        else:
-            status = "Internal error, unexpected connection state %s." % connection_state
-        view.set_status(STATUS_CATEGORY, STATUS_FORMAT % status)
-
     def run(self):
         for con in self._connection_views_map.keys():
             previous_state = con.state
 
             con.run(datetime.timedelta(milliseconds=FRONTEND_POLL_DURATION_MS))
-            new_state = con.state
+            state = con.state
 
+            # update views' contents if modified:
             for view in self._connection_views_map[con]:
-
-                # show status changes:
-                if new_state is not previous_state:
-                    self._update_view_status_for_connection_state(view, new_state)
-
-                # update view content if modified:
-                if new_state is State.Connected:
+                if state is State.Connected:
                     self.content_tracker.synchronize_content(con, view)
 
     def run_periodically(self):
         self.run()
         sublime.set_timeout(self.run_periodically, FRONTEND_POLL_PERIOD_MS)
+
+    def on_connection_state_changed(self, old_state, new_state, connection):
+        views = self._connection_views_map.get(connection)
+        if views:
+            for view in views:
+                if new_state is State.Connected:
+                    status = "Connected"
+                elif new_state is State.Connecting:
+                    status = "Connecting..."
+                elif new_state is State.Disconnecting:
+                    status = "Disconnecting..."
+                elif new_state is State.Disconnected:
+                    status = "Disconnected"
+                else:
+                    status = "Internal error, unexpected connection state %s." % new_state
+                view.set_status(STATUS_CATEGORY, STATUS_FORMAT % status)
+
+        if new_state is State.Connected:
+            # this is a new connection and possibly a new backend, so ask for any syntax definitions that are available:
+            _logger.debug('Querying backend for syntax definitions.')
+            connection.send_message(StaticSyntaxRequest(SyntaxFormatType.textmate))
