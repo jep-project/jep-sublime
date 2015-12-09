@@ -1,14 +1,16 @@
 """Infrastructure to connect Sublime and JEP."""
 import datetime
 import logging
+import os
 
-from jep.frontend import BackendListener, Frontend, State
-from .completion import Autocompleter
-from .content import Tracker
-from .annotation import ErrorAnnotator
-from .constants import FRONTEND_POLL_DURATION_MS, FRONTEND_POLL_PERIOD_MS, STATUS_CATEGORY, STATUS_FORMAT
-from jep.schema import StaticSyntaxRequest, SyntaxFormatType
 import sublime
+from jep.frontend import BackendListener, Frontend, State
+from jep.schema import StaticSyntaxRequest, SyntaxFormatType
+from .annotation import ErrorAnnotator
+from .completion import Autocompleter
+from .constants import FRONTEND_POLL_DURATION_MS, FRONTEND_POLL_PERIOD_MS, STATUS_CATEGORY, STATUS_FORMAT
+from .content import Tracker
+from .syntax import SyntaxManager
 
 _logger = logging.getLogger(__name__)
 
@@ -16,13 +18,14 @@ _logger = logging.getLogger(__name__)
 class ConnectionManager(BackendListener):
     """Manages connections between Sublime and JEP backends. Maps views and files in Sublime to JEP connections."""
 
-    def __init__(self, content_tracker=None, auto_completer=None, error_annotator=None):
+    def __init__(self, content_tracker=None, syntax_manager=None, auto_completer=None, error_annotator=None):
         self._frontend = Frontend([self])
         #: Map from connection to supported views.
         self._connection_views_map = {}
         self._file_connection_map = {}
 
         self.content_tracker = content_tracker or Tracker()
+        self.syntax_manager = syntax_manager or SyntaxManager(os.path.join(sublime.packages_path(), 'jep'))
         self.auto_completer = auto_completer or Autocompleter(self)
         self.error_annotator = error_annotator or ErrorAnnotator(self)
 

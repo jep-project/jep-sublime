@@ -11,12 +11,33 @@ import sublime_plugin
 _logger = logging.getLogger(__name__)
 
 
+def plugin_loaded():
+    JepSublimeEventListener.instance.on_plugin_loaded()
+
+
+def plugin_unloaded():
+    JepSublimeEventListener.instance.on_plugin_unloaded()
+
+
 class JepSublimeEventListener(sublime_plugin.EventListener):
     """Entry point for Sublime events, composes object tree."""
 
-    def __init__(self, backend_adapter=None):
+    backend_adapter = None
+    instance = None
+
+    def __init__(self):
+        assert not JepSublimeEventListener.instance
+        JepSublimeEventListener.instance = self
+
+    def on_plugin_loaded(self, backend_adapter=None):
+        _logger.debug('Initializing JEP Plugin after Sublime loaded plugin.')
         self.backend_adapter = backend_adapter or ConnectionManager()
         self.backend_adapter.run_periodically()
+
+    def on_plugin_unloaded(self):
+        if JepSublimeEventListener.instance:
+            _logger.debug('Unloading plugin.')
+            JepSublimeEventListener.instance = None
 
     def on_activated(self, view):
         """Activation of existing view, needed to capture files in editor from last Sublime session."""
