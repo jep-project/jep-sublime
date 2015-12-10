@@ -2,7 +2,6 @@
 import datetime
 import logging
 import os
-
 import sublime
 from jep.frontend import BackendListener, Frontend, State
 from jep.schema import StaticSyntaxRequest, SyntaxFormatType
@@ -123,3 +122,12 @@ class ConnectionManager(BackendListener):
             # this is a new connection and possibly a new backend, so ask for any syntax definitions that are available:
             _logger.debug('Querying backend for syntax definitions.')
             connection.send_message(StaticSyntaxRequest(SyntaxFormatType.textmate))
+
+    def on_static_syntax_list(self, format_, syntaxes, connection):
+        if format_ is not SyntaxFormatType.textmate:
+            _logger.debug('Ignoring {} syntax definitions in format {}.'.format(len(syntaxes), format_.name))
+            return
+
+        install = self.syntax_manager.install_syntax
+        for syntax in syntaxes:
+            install(syntax.name, syntax.fileExtensions, syntax.definition)

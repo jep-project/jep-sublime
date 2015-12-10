@@ -26,18 +26,27 @@ class SyntaxManager:
     """
 
     SYNTAX_FILE_PATTERN = re.compile(r'^(?P<name>[\w\.\-]+)\.tmLanguage$')
+    SYNTAX_FILE_FORMAT = '{name}.tmLanguage'
 
     def __init__(self, dirpath):
         #: Path to directory holding JEP syntax files.
         self.dirpath = os.path.abspath(dirpath)
         #: Map from syntax name to content hash value.
         self.name_to_hash = {}
-
         self.compute_local_hashes()
 
     def install_syntax(self, name, extensions, definition):
         """Installs syntax definition if new."""
-        pass
+        _logger.debug('Received syntax {}.'.format(name))
+
+        if not self.syntax_hash(definition) == self.syntax_file_hash(name):
+            _logger.info('Installing new or updated syntax definition {}.'.format(name))
+
+            with open(self.syntax_file_path(name), 'wt') as syntaxfile:
+                syntaxfile.write(definition)
+
+            # No need to notify sublime, as it is watching the packages folder and applies new or updated
+            # syntax definitions immediately.
 
     def compute_local_hashes(self):
         self.name_to_hash = dict()
@@ -47,14 +56,27 @@ class SyntaxManager:
 
         matches = filter(None, (self.SYNTAX_FILE_PATTERN.match(entry) for entry in os.listdir(self.dirpath)))
         names = (m.group('name') for m in matches)
-        self.name_to_hash = {name: self.hash_of(name) for name in names}
+        self.name_to_hash = {name: self.syntax_file_hash(name) for name in names}
 
         _logger.debug('Found {} local syntax files in {}.'.format(len(self.name_to_hash), self.dirpath))
 
-    def hash_of(self, name):
+    def syntax_file_hash(self, name):
         """Computes hash value of content of syntax file with given name in ``dirpath``."""
 
-        with open(os.path.join(self.dirpath, '{}.tmLanguage'.format(name))) as syntaxfile:
-            content = syntaxfile.read()
-            hash_ = hashlib.sha1(content.encode()).digest()
-            return hash_
+        try:
+            with open(self.syntax_file_path(name)) as syntaxfile:
+                content = syntaxfile.read()
+                hash_ = self.syntax_hash(content)
+                return hash_
+        except FileNotFoundError:
+            return None
+        except Exception as ex:
+            _logger.warning('Cannot access syntax file {}: {}'.format(name, ex))
+            return None
+
+    def syntax_file_path(self, name):
+        return os.path.join(self.dirpath, self.SYNTAX_FILE_FORMAT.format(name=name))
+
+    @classmethod
+    def syntax_hash(cls, syntaxtext):
+        return hashlib.sha1(syntaxtext.encode()).digest()
