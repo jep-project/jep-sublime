@@ -130,4 +130,4 @@ class ConnectionManager(BackendListener):
 
         install = self.syntax_manager.install_syntax
         for syntax in syntaxes:
-            install(syntax.name, syntax.fileExtensions, syntax.definition)
+            install(syntax.name, syntax.definition)

@@ -35,7 +35,7 @@ class SyntaxManager:
         self.name_to_hash = {}
         self.compute_local_hashes()
 
-    def install_syntax(self, name, extensions, definition):
+    def install_syntax(self, name, definition):
         """Installs syntax definition if new."""
         _logger.debug('Received syntax {}.'.format(name))
 
@@ -47,6 +47,8 @@ class SyntaxManager:
 
             # No need to notify sublime, as it is watching the packages folder and applies new or updated
             # syntax definitions immediately.
+        else:
+            _logger.debug('Syntax already installed.')
 
     def compute_local_hashes(self):
         self.name_to_hash = dict()
