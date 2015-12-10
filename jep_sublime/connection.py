@@ -117,6 +117,7 @@ class ConnectionManager(BackendListener):
                 else:
                     status = "Internal error, unexpected connection state %s." % new_state
                 view.set_status(STATUS_CATEGORY, STATUS_FORMAT % status)
+                _logger.debug('Connection state changed to {}.'.format(status))
 
         if new_state is State.Connected:
             # this is a new connection and possibly a new backend, so ask for any syntax definitions that are available:
