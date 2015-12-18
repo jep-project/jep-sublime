@@ -3,6 +3,7 @@ import datetime
 import logging
 
 from jep.schema import CompletionRequest
+import sublime
 from .constants import FRONTEND_POLL_DURATION_MS
 
 _logger = logging.getLogger(__name__)
@@ -27,4 +28,9 @@ class Autocompleter:
         else:
             _logger.warning('Completion request cannot be served, no connection for file %s.' % view.file_name())
 
-        return result
+        if result:
+            # INHIBIT_WORD_COMPLETIONS: prevent dummy code completion, i.e. do not simply offer any words found in document
+            # INHIBIT_EXPLICIT_COMPLETIONS: prevent completions from completion files
+            return result, sublime.INHIBIT_WORD_COMPLETIONS
+        else:
+            return None
