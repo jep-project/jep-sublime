@@ -3,8 +3,8 @@ import datetime
 import logging
 import os
 import sublime
-from jep.frontend import BackendListener, Frontend, State
-from jep.schema import StaticSyntaxRequest, SyntaxFormatType
+from jep_py.frontend import BackendListener, Frontend, State
+from jep_py.schema import StaticSyntaxRequest, SyntaxFormatType
 from .annotation import ErrorAnnotator
 from .completion import Autocompleter
 from .constants import FRONTEND_POLL_DURATION_MS, FRONTEND_POLL_PERIOD_MS, STATUS_CATEGORY, STATUS_FORMAT

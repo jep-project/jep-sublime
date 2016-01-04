@@ -1,5 +1,5 @@
 """File content management."""
-from jep.schema import ContentSync
+from jep_py.schema import ContentSync
 import sublime
 
 

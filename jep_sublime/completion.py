@@ -2,7 +2,7 @@
 import datetime
 import logging
 
-from jep.schema import CompletionRequest
+from jep_py.schema import CompletionRequest
 import sublime
 from .constants import FRONTEND_POLL_DURATION_MS
 
