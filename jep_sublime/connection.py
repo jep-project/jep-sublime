@@ -52,10 +52,7 @@ class ConnectionManager(BackendListener):
                 self._file_connection_map[filename] = con
 
                 # maybe the connection is already up as it was used by another file:
-                views = self._connection_views_map.get(con)
-                if not views:
-                    views = []
-                    self._connection_views_map[con] = views
+                views = self._connection_views_map.setdefault(con, [])
                 views.append(view)
             else:
                 _logger.debug('Frontend did not identify backend for file.')
@@ -72,17 +69,21 @@ class ConnectionManager(BackendListener):
         """Releases the connection for the given view and returns the number of views left using this connection."""
         num_views_left = 0
 
-        _logger.debug('Number of connections: %d' % len(self._connection_views_map))
-        _logger.debug('Number of files:       %d' % len(self._file_connection_map))
+        _logger.debug('Number of connections:                %d' % len(self._connection_views_map))
+        _logger.debug('Number of files before:               %d' % len(self._file_connection_map))
         filename = view.file_name()
         con = self._file_connection_map.pop(filename, None)
+        _logger.debug('Number of files after:                %d' % len(self._file_connection_map))
         if con:
             views = self._connection_views_map[con]
-            views.remove(view)
+            _logger.debug('Number of views in connection before: %d' % len(views))
+            try:
+                views.remove(view)
+            except ValueError:
+                # Sublime changed views a bit too fast.
+                pass
             num_views_left = len(views)
-            if not num_views_left:
-                _logger.debug('Shutting down connection as last view was closed.')
-                con.disconnect()
+            _logger.debug('Number of views in connection after:  %d' % num_views_left)
 
         return num_views_left
 
@@ -94,9 +95,14 @@ class ConnectionManager(BackendListener):
             state = con.state
 
             # update views' contents if modified:
-            for view in self._connection_views_map[con]:
-                if state is State.Connected:
-                    self.content_tracker.synchronize_content(con, view)
+            views = self._connection_views_map[con]
+            for view in views.copy():
+                if view.is_valid():
+                    if state is State.Connected:
+                        self.content_tracker.synchronize_content(con, view)
+                else:
+                    _logger.warning('Found invalid view.')
+                    views.remove(view)
 
     def run_periodically(self):
         self.run()

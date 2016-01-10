@@ -2,6 +2,7 @@
 from jep_py.schema import ContentSync
 import sublime
 
+# TODO: Change interface to filename, not view level. We are tracking the file content, not a particular view.
 
 class Tracker:
     def __init__(self):
@@ -28,6 +29,6 @@ class Tracker:
     def synchronize_content(self, connection, view):
         """Synchronizes content with backend if modified."""
         filename = view.file_name()
-        if self.file_modified_map.get(view.file_name(), False):
+        if self.file_modified_map.get(filename, False):
             self.file_modified_map[filename] = False
             connection.send_message(ContentSync(filename, view.substr(sublime.Region(0, view.size()))))
